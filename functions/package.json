@@ -4,6 +4,7 @@
   "description": "Netlify functions cho push notifications",
   "main": "send-notification.js",
   "dependencies": {
-    "web-push": "^3.6.6"
+    "web-push": "^3.6.6",
+    "@supabase/supabase-js": "^2.39.7"
   }
 } 

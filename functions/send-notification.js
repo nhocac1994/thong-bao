@@ -1,4 +1,5 @@
 const webpush = require('web-push');
+const { createClient } = require('@supabase/supabase-js');
 
 // VAPID keys cố định (được tạo một lần và sử dụng lại)
 const vapidKeys = {
@@ -12,8 +13,10 @@ webpush.setVapidDetails(
   vapidKeys.privateKey
 );
 
-// Lưu trữ subscriptions (trong thực tế nên dùng database)
-let subscriptions = [];
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
 exports.handler = async (event, context) => {
   // CORS headers
@@ -35,50 +38,44 @@ exports.handler = async (event, context) => {
   try {
     const { path } = event;
 
-    // Endpoint để lưu subscription
+    // Lưu subscription vào Supabase
     if (path === '/api/save-subscription' && event.httpMethod === 'POST') {
       const subscription = JSON.parse(event.body);
-      
-      // Kiểm tra xem subscription đã tồn tại chưa
-      const existingIndex = subscriptions.findIndex(
-        sub => sub.endpoint === subscription.endpoint
-      );
-      
-      if (existingIndex >= 0) {
-        subscriptions[existingIndex] = subscription;
-      } else {
-        subscriptions.push(subscription);
-      }
 
-      console.log('Subscription đã được lưu:', subscription.endpoint);
+      // Kiểm tra trùng endpoint
+      const { data: existing } = await supabase
+        .from('subscriptions')
+        .select('id')
+        .eq('endpoint', subscription.endpoint)
+        .maybeSingle();
+
+      if (!existing) {
+        await supabase
+          .from('subscriptions')
+          .insert([{ endpoint: subscription.endpoint, keys: subscription.keys }]);
+      }
 
       return {
         statusCode: 200,
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          message: 'Subscription đã được lưu thành công',
-          publicKey: vapidKeys.publicKey
-        })
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'Subscription đã được lưu thành công', publicKey: vapidKeys.publicKey })
       };
     }
 
-    // Endpoint để gửi notification
+    // Gửi notification tới tất cả subscription trong Supabase
     if (path === '/api/send-notification' && event.httpMethod === 'POST') {
       const { title, body, icon } = JSON.parse(event.body);
-      
-      if (!subscriptions.length) {
+
+      // Lấy tất cả subscription
+      const { data: subscriptions } = await supabase
+        .from('subscriptions')
+        .select('*');
+
+      if (!subscriptions || !subscriptions.length) {
         return {
           statusCode: 400,
-          headers: {
-            ...headers,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ 
-            error: 'Không có subscription nào để gửi thông báo' 
-          })
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'Không có subscription nào để gửi thông báo' })
         };
       }
 
@@ -88,45 +85,27 @@ exports.handler = async (event, context) => {
         icon: icon || '/icon.svg',
         badge: '/icon.svg',
         vibrate: [100, 50, 100],
-        data: {
-          dateOfArrival: Date.now(),
-          primaryKey: 1
-        }
+        data: { dateOfArrival: Date.now(), primaryKey: 1 }
       });
 
-      // Gửi notification đến tất cả subscriptions
+      // Gửi notification tới tất cả subscription
       const results = await Promise.allSettled(
         subscriptions.map(subscription =>
-          webpush.sendNotification(subscription, payload)
+          webpush.sendNotification(
+            {
+              endpoint: subscription.endpoint,
+              keys: subscription.keys
+            },
+            payload
+          )
         )
       );
 
-      const successful = results.filter(result => result.status === 'fulfilled').length;
-      const failed = results.filter(result => result.status === 'rejected').length;
-
-      console.log(`Gửi thông báo: ${successful} thành công, ${failed} thất bại`);
-
-      // Xóa các subscription không hợp lệ
-      const validSubscriptions = [];
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          validSubscriptions.push(subscriptions[index]);
-        } else {
-          console.log('Subscription không hợp lệ:', subscriptions[index].endpoint);
-        }
-      });
-      subscriptions = validSubscriptions;
-
       return {
         statusCode: 200,
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          message: `Đã gửi thông báo: ${successful} thành công, ${failed} thất bại`,
-          successful,
-          failed
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Đã gửi thông báo: ${results.filter(r => r.status === 'fulfilled').length} thành công, ${results.filter(r => r.status === 'rejected').length} thất bại`
         })
       };
     }
