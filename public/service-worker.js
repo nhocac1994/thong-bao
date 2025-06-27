@@ -52,9 +52,9 @@ self.addEventListener('push', (event) => {
     icon: data.icon || '/favicon/favicon.svg',
     badge: data.badge || '/favicon/favicon.svg',
     vibrate: data.vibrate || [100, 50, 100],
-    data: data.data || {
-      dateOfArrival: Date.now(),
-      primaryKey: 1
+    data: {
+      ...data.data,
+      url: data.url
     },
     actions: [
       {
@@ -81,12 +81,14 @@ self.addEventListener('notificationclick', (event) => {
   
   event.notification.close();
 
-  if (event.action === 'explore') {
-    // Mở trang web khi click vào "Xem chi tiết"
-    event.waitUntil(
-      clients.openWindow('/')
-    );
-  }
+  // Lấy link từ data truyền vào notification
+  const urlToOpen = event.notification.data && event.notification.data.url
+    ? event.notification.data.url
+    : '/'; // Mặc định về trang chủ nếu không có url
+
+  event.waitUntil(
+    clients.openWindow(urlToOpen)
+  );
 });
 
 // Xử lý fetch requests
