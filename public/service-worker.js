@@ -58,8 +58,8 @@ self.addEventListener('push', (event) => {
 
   console.log('Push data:', data);
 
-  // URL mặc định khi không có URL từ payload
-  const defaultUrl = 'https://appsheet.com/start/8c7d8a1e-1f0e-4ef5-a8d4-a539d89ba189';
+  // URL mặc định chỉ sử dụng khi không có URL từ payload
+  const defaultUrl = 'https://www.appsheet.com/start/1d77caaf-8819-42c2-9fbd-244e3748261b#view=DonHang_Detail';
 
   // Tìm URL từ nhiều nguồn có thể
   let urlFromPayload = null;
@@ -67,8 +67,10 @@ self.addEventListener('push', (event) => {
   // Kiểm tra URL trong các vị trí khác nhau
   if (data.url && typeof data.url === 'string' && data.url.trim() !== '') {
     urlFromPayload = data.url.trim();
+    console.log('Tìm thấy URL trong data.url:', urlFromPayload);
   } else if (data.data && data.data.url && typeof data.data.url === 'string' && data.data.url.trim() !== '') {
     urlFromPayload = data.data.url.trim();
+    console.log('Tìm thấy URL trong data.data.url:', urlFromPayload);
   } else {
     // Thử tìm URL trong rawText nếu là JSON string
     try {
@@ -76,8 +78,10 @@ self.addEventListener('push', (event) => {
         const parsedFromRaw = JSON.parse(rawText);
         if (parsedFromRaw.url && typeof parsedFromRaw.url === 'string' && parsedFromRaw.url.trim() !== '') {
           urlFromPayload = parsedFromRaw.url.trim();
+          console.log('Tìm thấy URL trong parsedFromRaw.url:', urlFromPayload);
         } else if (parsedFromRaw.data && parsedFromRaw.data.url && typeof parsedFromRaw.data.url === 'string' && parsedFromRaw.data.url.trim() !== '') {
           urlFromPayload = parsedFromRaw.data.url.trim();
+          console.log('Tìm thấy URL trong parsedFromRaw.data.url:', urlFromPayload);
         }
       }
     } catch (e) {
@@ -85,9 +89,9 @@ self.addEventListener('push', (event) => {
     }
   }
   
-  // Đảm bảo URL không rỗng, sử dụng URL mặc định nếu không tìm thấy URL
+  // Chỉ sử dụng URL mặc định khi không tìm thấy URL từ payload
   const safeUrl = urlFromPayload || defaultUrl;
-  console.log('URL sau khi xử lý:', safeUrl);
+  console.log('URL cuối cùng sẽ sử dụng:', safeUrl);
 
   // Đảm bảo data.url được truyền vào notification data
   const options = {
@@ -141,11 +145,11 @@ self.addEventListener('notificationclick', (event) => {
   // Đóng notification
   event.notification.close();
 
-  // URL mặc định khi không có URL từ notification data
-  const defaultUrl = 'https://appsheet.com/start/8c7d8a1e-1f0e-4ef5-a8d4-a539d89ba189';
+  // URL mặc định chỉ sử dụng khi không có URL từ notification data
+  const defaultUrl = 'https://www.appsheet.com/start/1d77caaf-8819-42c2-9fbd-244e3748261b#view=DonHang_Detail';
 
-  // Đảm bảo URL luôn là chuỗi hợp lệ
-  let urlToOpen = defaultUrl;
+  // Biến để lưu URL cuối cùng
+  let urlToOpen = null;
   
   // Xử lý action nếu có
   const action = event.action;
@@ -190,8 +194,14 @@ self.addEventListener('notificationclick', (event) => {
     }
   }
 
-  console.log('URL to open:', urlToOpen);
-  console.log('URL to open (JSON):', JSON.stringify(urlToOpen));
+  // Chỉ sử dụng URL mặc định khi không tìm thấy URL từ notification data
+  if (!urlToOpen) {
+    urlToOpen = defaultUrl;
+    console.log('Không tìm thấy URL từ notification data, sử dụng URL mặc định:', urlToOpen);
+  }
+
+  console.log('URL cuối cùng sẽ mở:', urlToOpen);
+  console.log('URL cuối cùng (JSON):', JSON.stringify(urlToOpen));
 
   // Đảm bảo URL không rỗng trước khi mở
   if (urlToOpen && urlToOpen.trim() !== '') {

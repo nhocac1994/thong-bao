@@ -169,6 +169,9 @@ function App() {
     setTestStatus('Đang gửi thông báo...');
     
     try {
+      // URL mặc định cho thông báo
+      const defaultUrl = 'https://www.appsheet.com/start/1d77caaf-8819-42c2-9fbd-244e3748261b#view=DonHang_Detail';
+      
       // Gửi thông báo trực tiếp nếu có quyền
       if (Notification.permission === 'granted') {
         new Notification('🔔 Thông báo test', {
@@ -179,7 +182,7 @@ function App() {
           tag: 'test-notification',
           requireInteraction: true,
           data: {
-            url: window.location.origin
+            url: defaultUrl
           }
         });
         setTestStatus('✅ Thông báo test đã được gửi thành công!');
@@ -187,9 +190,8 @@ function App() {
 
       // Gửi thông báo qua server nếu đã đăng ký
       if (isSubscribed) {
-        // Đảm bảo URL đầy đủ và chính xác
-        const testUrl = window.location.origin;
-        console.log('Gửi thông báo test với URL:', testUrl);
+        // Sử dụng URL mặc định thay vì window.location.origin
+        console.log('Gửi thông báo test với URL:', defaultUrl);
         
         const response = await fetch('/.netlify/functions/send-notification', {
           method: 'POST',
@@ -200,7 +202,7 @@ function App() {
             title: '🚀 Thông báo test từ server',
             body: 'Đây là thông báo test được gửi qua server!',
             icon: '/favicon/favicon.svg',
-            url: testUrl
+            url: defaultUrl
           })
         });
         
@@ -222,8 +224,9 @@ function App() {
 
   const sendLocalNotification = () => {
     if (Notification.permission === 'granted') {
-      const testUrl = window.location.origin;
-      console.log('Gửi thông báo local với URL:', testUrl);
+      // URL mặc định cho thông báo
+      const defaultUrl = 'https://www.appsheet.com/start/1d77caaf-8819-42c2-9fbd-244e3748261b#view=DonHang_Detail';
+      console.log('Gửi thông báo local với URL:', defaultUrl);
       
       new Notification('📱 Thông báo local', {
         body: 'Đây là thông báo local không cần server!',
@@ -233,7 +236,7 @@ function App() {
         tag: 'local-notification',
         requireInteraction: false,
         data: {
-          url: testUrl
+          url: defaultUrl
         }
       });
       setTestStatus('✅ Thông báo local đã được gửi!');

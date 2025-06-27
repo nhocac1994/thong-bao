@@ -116,6 +116,9 @@ exports.handler = async (event, context) => {
       
       const { title, body, icon, url } = requestData;
 
+      // Log toàn bộ request data để kiểm tra
+      console.log('Toàn bộ request data:', JSON.stringify(requestData, null, 2));
+
       // Lấy tất cả subscription
       const { data: subscriptions } = await supabase
         .from('subscriptions')
@@ -134,22 +137,50 @@ exports.handler = async (event, context) => {
       console.log('URL type:', typeof url);
       console.log('URL stringified:', JSON.stringify(url));
 
-      // Đặt URL mặc định - thay đổi URL này thành URL mà bạn muốn mở khi click thông báo
+      // Đặt URL mặc định chỉ sử dụng khi không có URL từ webhook
       const defaultUrl = 'https://www.appsheet.com/start/1d77caaf-8819-42c2-9fbd-244e3748261b#view=DonHang_Detail';
       
-      // Đảm bảo URL không rỗng
-      let safeUrl = defaultUrl; // Luôn sử dụng URL mặc định
+      // Biến để lưu URL cuối cùng
+      let safeUrl = null;
+      
+      // Tìm URL từ webhook với độ ưu tiên từ cao xuống thấp
       if (url !== undefined && url !== null) {
-        if (typeof url === 'string' && url.trim() !== '') {
-          // Nếu có URL từ webhook, vẫn ưu tiên sử dụng nó
-          safeUrl = url.trim();
+        if (typeof url === 'string') {
+          // Xử lý URL string
+          if (url.trim() !== '') {
+            safeUrl = url.trim();
+            
+            // Xử lý các trường hợp đặc biệt của URL từ webhook
+            if (url.includes('\\')) {
+              // Xử lý escape character trong URL
+              safeUrl = url.replace(/\\\\/g, '\\').replace(/\\"/g, '"');
+              console.log('URL sau khi xử lý escape characters:', safeUrl);
+            }
+          }
         } else if (typeof url === 'object') {
           // Nếu URL là object, thử chuyển thành string
-          safeUrl = JSON.stringify(url);
+          try {
+            safeUrl = JSON.stringify(url);
+          } catch (e) {
+            console.error('Lỗi khi chuyển URL object thành string:', e);
+          }
         }
       }
-      console.log('URL sau khi xử lý:', safeUrl);
-      console.log('URL type sau khi xử lý:', typeof safeUrl);
+      
+      // Kiểm tra URL từ các trường khác trong webhook nếu chưa tìm thấy URL
+      if (!safeUrl && requestData.data && requestData.data.url) {
+        safeUrl = requestData.data.url;
+        console.log('Sử dụng URL từ requestData.data.url:', safeUrl);
+      }
+      
+      // Chỉ sử dụng URL mặc định khi không tìm thấy URL từ webhook
+      if (!safeUrl) {
+        safeUrl = defaultUrl;
+        console.log('Không tìm thấy URL từ webhook, sử dụng URL mặc định:', safeUrl);
+      }
+      
+      console.log('URL cuối cùng sẽ sử dụng:', safeUrl);
+      console.log('URL type cuối cùng:', typeof safeUrl);
 
       const payload = JSON.stringify({
         title: title || 'Thông báo mới',
