@@ -111,23 +111,23 @@ exports.handler = async (event, context) => {
           body: JSON.stringify({ error: 'Không có subscription nào để gửi thông báo' })
         };
       }
-      const payload = JSON.stringify({
+      const payload = {
         title: title || 'Thông báo mới',
         body: body || 'Bạn có thông báo mới!',
         icon: icon || '/icon.svg',
         badge: '/icon.svg',
         vibrate: [100, 50, 100],
         data: { dateOfArrival: Date.now(), primaryKey: 1 }
-      });
+      };
       // Gửi notification tới tất cả subscription
-      const results = await Promise.allSettled(
+      const results = await Promise.allSetled(
         subscriptions.map(subscription =>
           webpush.sendNotification(
             {
               endpoint: subscription.endpoint,
               keys: subscription.keys
             },
-            payload
+            JSON.stringify(payload)
           )
         )
       );
@@ -164,22 +164,22 @@ exports.handler = async (event, context) => {
       const { title, body } = JSON.parse(event.body);
       // Lấy tất cả subscription
       const { data: subscriptions } = await supabase.from('subscriptions').select('*');
-      const payload = JSON.stringify({
+      const payload = {
         title: title || 'Có dòng mới trong Google Sheet!',
         body: body || 'Một dòng mới vừa được thêm vào Google Sheet.',
         icon: '/icon.svg',
         badge: '/icon.svg',
         vibrate: [100, 50, 100],
         data: { dateOfArrival: Date.now(), primaryKey: 1 }
-      });
-      await Promise.allSettled(
+      };
+      await Promise.allSetled(
         subscriptions.map(subscription =>
           webpush.sendNotification(
             {
               endpoint: subscription.endpoint,
               keys: subscription.keys
             },
-            payload
+            JSON.stringify(payload)
           )
         )
       );
