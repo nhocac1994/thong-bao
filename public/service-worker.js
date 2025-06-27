@@ -39,22 +39,66 @@ self.addEventListener('push', (event) => {
   console.log('Nhận được push notification:', event);
 
   let data = {};
+  let rawText = '';
+  
   if (event.data) {
     try {
+      rawText = event.data.text();
+      console.log('Raw push data text:', rawText);
+      
       data = event.data.json();
+      console.log('Push data (parsed JSON):', data);
+      console.log('URL trong push data:', data.url);
+      console.log('URL trong data.data:', data.data ? data.data.url : 'không có');
     } catch (e) {
-      data = { title: 'Thông báo mới', body: event.data.text() };
+      console.error('Lỗi parse JSON:', e);
+      data = { title: 'Thông báo mới', body: rawText || 'Bạn có thông báo mới!' };
     }
   }
 
+  console.log('Push data:', data);
+
+  // URL mặc định khi không có URL từ payload
+  const defaultUrl = 'https://appsheet.com/start/8c7d8a1e-1f0e-4ef5-a8d4-a539d89ba189';
+
+  // Tìm URL từ nhiều nguồn có thể
+  let urlFromPayload = null;
+  
+  // Kiểm tra URL trong các vị trí khác nhau
+  if (data.url && typeof data.url === 'string' && data.url.trim() !== '') {
+    urlFromPayload = data.url.trim();
+  } else if (data.data && data.data.url && typeof data.data.url === 'string' && data.data.url.trim() !== '') {
+    urlFromPayload = data.data.url.trim();
+  } else {
+    // Thử tìm URL trong rawText nếu là JSON string
+    try {
+      if (rawText && rawText.includes('url')) {
+        const parsedFromRaw = JSON.parse(rawText);
+        if (parsedFromRaw.url && typeof parsedFromRaw.url === 'string' && parsedFromRaw.url.trim() !== '') {
+          urlFromPayload = parsedFromRaw.url.trim();
+        } else if (parsedFromRaw.data && parsedFromRaw.data.url && typeof parsedFromRaw.data.url === 'string' && parsedFromRaw.data.url.trim() !== '') {
+          urlFromPayload = parsedFromRaw.data.url.trim();
+        }
+      }
+    } catch (e) {
+      console.error('Không thể tìm URL trong raw text:', e);
+    }
+  }
+  
+  // Đảm bảo URL không rỗng, sử dụng URL mặc định nếu không tìm thấy URL
+  const safeUrl = urlFromPayload || defaultUrl;
+  console.log('URL sau khi xử lý:', safeUrl);
+
+  // Đảm bảo data.url được truyền vào notification data
   const options = {
     body: data.body || 'Bạn có thông báo mới!',
     icon: data.icon || '/favicon/favicon.svg',
     badge: data.badge || '/favicon/favicon.svg',
     vibrate: data.vibrate || [100, 50, 100],
     data: {
-      ...data.data,
-      url: data.url
+      url: safeUrl,
+      dateOfArrival: data.data ? data.data.dateOfArrival : Date.now(),
+      primaryKey: data.data ? data.data.primaryKey : 1
     },
     actions: [
       {
@@ -67,7 +111,19 @@ self.addEventListener('push', (event) => {
         title: 'Đóng',
         icon: '/favicon/favicon.svg'
       }
-    ]
+    ],
+    // Thêm tag để tránh hiển thị nhiều thông báo trùng lặp
+    tag: 'push-notification-' + Date.now()
+  };
+
+  console.log('Notification options:', options);
+  console.log('URL trong notification data:', options.data.url);
+
+  // Xử lý action khi click vào notification
+  options.data.onActionClick = {
+    default: {url: safeUrl},
+    explore: {url: safeUrl},
+    close: {}
   };
 
   event.waitUntil(
@@ -78,20 +134,127 @@ self.addEventListener('push', (event) => {
 // Xử lý khi người dùng click vào notification
 self.addEventListener('notificationclick', (event) => {
   console.log('Notification được click:', event);
+  console.log('Notification data:', event.notification.data);
+  console.log('Notification data type:', typeof event.notification.data);
+  console.log('Notification data keys:', event.notification.data ? Object.keys(event.notification.data) : 'không có keys');
   
+  // Đóng notification
   event.notification.close();
 
-  // Lấy link từ data truyền vào notification
-  let urlToOpen = event.notification.data && event.notification.data.url
-    ? event.notification.data.url
-    : '/';
+  // URL mặc định khi không có URL từ notification data
+  const defaultUrl = 'https://appsheet.com/start/8c7d8a1e-1f0e-4ef5-a8d4-a539d89ba189';
 
-  // Loại bỏ dấu \\ hoặc \ ở trước row id nếu có
-  urlToOpen = urlToOpen.replace(/row=\\\\?/g, 'row=');
+  // Đảm bảo URL luôn là chuỗi hợp lệ
+  let urlToOpen = defaultUrl;
+  
+  // Xử lý action nếu có
+  const action = event.action;
+  console.log('Action:', action);
+  
+  if (action === 'close') {
+    console.log('Người dùng chọn đóng thông báo');
+    return; // Không làm gì cả, chỉ đóng thông báo
+  }
+  
+  // Kiểm tra onActionClick trong data
+  if (event.notification.data && event.notification.data.onActionClick) {
+    const actionMap = event.notification.data.onActionClick;
+    console.log('Action map:', actionMap);
+    
+    // Nếu có action cụ thể, sử dụng URL từ action đó
+    if (action && actionMap[action] && actionMap[action].url) {
+      urlToOpen = actionMap[action].url;
+      console.log('Sử dụng URL từ action:', urlToOpen);
+    } 
+    // Nếu không có action cụ thể hoặc không tìm thấy action, sử dụng URL mặc định
+    else if (actionMap.default && actionMap.default.url) {
+      urlToOpen = actionMap.default.url;
+      console.log('Sử dụng URL mặc định từ action map:', urlToOpen);
+    }
+  }
+  // Nếu không có onActionClick, kiểm tra url trong data
+  else if (event.notification.data && event.notification.data.url) {
+    const rawUrl = event.notification.data.url;
+    console.log('Raw URL từ notification data:', rawUrl, 'type:', typeof rawUrl);
+    
+    if (typeof rawUrl === 'string' && rawUrl.trim() !== '') {
+      urlToOpen = rawUrl.trim();
+    }
+    console.log('Tìm thấy URL trong notification data:', urlToOpen);
+    console.log('URL type:', typeof urlToOpen);
+    console.log('URL length:', urlToOpen.length);
+  } else {
+    console.log('Không tìm thấy URL trong notification data, sử dụng URL mặc định');
+    if (event.notification.data) {
+      console.log('Các trường có trong notification data:', Object.keys(event.notification.data));
+    }
+  }
 
-  event.waitUntil(
-    clients.openWindow(urlToOpen)
-  );
+  console.log('URL to open:', urlToOpen);
+  console.log('URL to open (JSON):', JSON.stringify(urlToOpen));
+
+  // Đảm bảo URL không rỗng trước khi mở
+  if (urlToOpen && urlToOpen.trim() !== '') {
+    // Đảm bảo URL có protocol
+    if (!urlToOpen.startsWith('http://') && !urlToOpen.startsWith('https://') && urlToOpen !== '/') {
+      urlToOpen = 'https://' + urlToOpen;
+    }
+    
+    console.log('Mở URL cuối cùng:', urlToOpen);
+    
+    // Mở URL trong cửa sổ hiện có hoặc mở cửa sổ mới
+    event.waitUntil(
+      clients.matchAll({type: 'window', includeUncontrolled: true})
+        .then(windowClients => {
+          // Kiểm tra xem có cửa sổ nào đang mở không
+          for (let i = 0; i < windowClients.length; i++) {
+            const client = windowClients[i];
+            // Nếu có cửa sổ đang mở, focus vào nó và điều hướng
+            if ('focus' in client) {
+              client.focus();
+              // Nếu URL là đường dẫn tương đối, thêm origin
+              if (urlToOpen.startsWith('/')) {
+                const url = new URL(urlToOpen, self.location.origin).href;
+                if ('navigate' in client) {
+                  return client.navigate(url);
+                } else {
+                  return clients.openWindow(url);
+                }
+              } else {
+                if ('navigate' in client) {
+                  return client.navigate(urlToOpen);
+                } else {
+                  return clients.openWindow(urlToOpen);
+                }
+              }
+            }
+          }
+          
+          // Nếu không có cửa sổ nào đang mở, thử mở cửa sổ mới
+          if (clients.openWindow) {
+            // Nếu URL là đường dẫn tương đối, thêm origin
+            if (urlToOpen.startsWith('/')) {
+              const url = new URL(urlToOpen, self.location.origin).href;
+              return clients.openWindow(url)
+                .catch(error => {
+                  console.error('Lỗi khi mở window:', error);
+                  return null;
+                });
+            } else {
+              return clients.openWindow(urlToOpen)
+                .catch(error => {
+                  console.error('Lỗi khi mở window:', error);
+                  return null;
+                });
+            }
+          }
+          
+          return null;
+        })
+    );
+  } else {
+    console.error('URL rỗng, không thể mở window');
+  }
 });
 
 // Xử lý fetch requests

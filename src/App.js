@@ -126,7 +126,7 @@ function App() {
 
   const sendSubscriptionToServer = async (sub) => {
     try {
-      const response = await fetch('/api/send-notification', {
+      const response = await fetch('/.netlify/functions/send-notification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -173,18 +173,25 @@ function App() {
       if (Notification.permission === 'granted') {
         new Notification('🔔 Thông báo test', {
           body: 'Đây là thông báo test trực tiếp từ trình duyệt!',
-          icon: '/icon.svg',
-          badge: '/icon.svg',
+          icon: '/favicon/favicon.svg',
+          badge: '/favicon/favicon.svg',
           vibrate: [100, 50, 100],
           tag: 'test-notification',
-          requireInteraction: true
+          requireInteraction: true,
+          data: {
+            url: window.location.origin
+          }
         });
         setTestStatus('✅ Thông báo test đã được gửi thành công!');
       }
 
       // Gửi thông báo qua server nếu đã đăng ký
       if (isSubscribed) {
-        const response = await fetch('/api/send-notification', {
+        // Đảm bảo URL đầy đủ và chính xác
+        const testUrl = window.location.origin;
+        console.log('Gửi thông báo test với URL:', testUrl);
+        
+        const response = await fetch('/.netlify/functions/send-notification', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -192,13 +199,14 @@ function App() {
           body: JSON.stringify({
             title: '🚀 Thông báo test từ server',
             body: 'Đây là thông báo test được gửi qua server!',
-            icon: '/icon.svg'
+            icon: '/favicon/favicon.svg',
+            url: testUrl
           })
         });
         
         if (response.ok) {
           const result = await response.json();
-          setTestStatus(`✅ Thông báo server: ${result.successful} thành công, ${result.failed} thất bại`);
+          setTestStatus(`✅ Thông báo server: ${result.message}`);
         } else {
           setTestStatus('❌ Lỗi khi gửi thông báo qua server');
         }
@@ -214,13 +222,19 @@ function App() {
 
   const sendLocalNotification = () => {
     if (Notification.permission === 'granted') {
+      const testUrl = window.location.origin;
+      console.log('Gửi thông báo local với URL:', testUrl);
+      
       new Notification('📱 Thông báo local', {
         body: 'Đây là thông báo local không cần server!',
-        icon: '/icon.svg',
-        badge: '/icon.svg',
+        icon: '/favicon/favicon.svg',
+        badge: '/favicon/favicon.svg',
         vibrate: [200, 100, 200],
         tag: 'local-notification',
-        requireInteraction: false
+        requireInteraction: false,
+        data: {
+          url: testUrl
+        }
       });
       setTestStatus('✅ Thông báo local đã được gửi!');
       setTimeout(() => setTestStatus(''), 3000);

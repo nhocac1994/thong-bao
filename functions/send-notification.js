@@ -96,9 +96,26 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Gửi notification tới tất cả subscription trong Supabase (POST, có title/body/icon trong body)
+    // Gửi notification tới tất cả subscription trong Supabase (POST, có title/body/icon/url trong body)
     if (event.httpMethod === 'POST' && event.body && event.body.includes('title')) {
-      const { title, body, icon } = JSON.parse(event.body);
+      console.log('Raw request body:', event.body);
+      
+      // Parse JSON từ request body
+      let requestData;
+      try {
+        requestData = JSON.parse(event.body.trim());
+        console.log('Parsed request data:', requestData);
+      } catch (error) {
+        console.error('Lỗi khi parse JSON từ request body:', error);
+        return {
+          statusCode: 400,
+          headers: { ...headers, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'Lỗi khi parse JSON từ request body' })
+        };
+      }
+      
+      const { title, body, icon, url } = requestData;
+
       // Lấy tất cả subscription
       const { data: subscriptions } = await supabase
         .from('subscriptions')
@@ -111,14 +128,46 @@ exports.handler = async (event, context) => {
           body: JSON.stringify({ error: 'Không có subscription nào để gửi thông báo' })
         };
       }
+
+      // Log thông tin URL nhận được
+      console.log('URL nhận được từ request:', url);
+      console.log('URL type:', typeof url);
+      console.log('URL stringified:', JSON.stringify(url));
+
+      // Đặt URL mặc định - thay đổi URL này thành URL mà bạn muốn mở khi click thông báo
+      const defaultUrl = 'https://www.appsheet.com/start/1d77caaf-8819-42c2-9fbd-244e3748261b#view=DonHang_Detail';
+      
+      // Đảm bảo URL không rỗng
+      let safeUrl = defaultUrl; // Luôn sử dụng URL mặc định
+      if (url !== undefined && url !== null) {
+        if (typeof url === 'string' && url.trim() !== '') {
+          // Nếu có URL từ webhook, vẫn ưu tiên sử dụng nó
+          safeUrl = url.trim();
+        } else if (typeof url === 'object') {
+          // Nếu URL là object, thử chuyển thành string
+          safeUrl = JSON.stringify(url);
+        }
+      }
+      console.log('URL sau khi xử lý:', safeUrl);
+      console.log('URL type sau khi xử lý:', typeof safeUrl);
+
       const payload = JSON.stringify({
         title: title || 'Thông báo mới',
         body: body || 'Bạn có thông báo mới!',
         icon: icon || '/favicon/favicon.svg',
         badge: '/favicon/favicon.svg',
         vibrate: [100, 50, 100],
-        data: { dateOfArrival: Date.now(), primaryKey: 1 }
+        url: safeUrl,
+        data: { 
+          url: safeUrl,
+          dateOfArrival: Date.now(), 
+          primaryKey: 1 
+        }
       });
+      
+      // Log payload để kiểm tra
+      console.log('Payload gửi đi:', payload);
+
       // Gửi notification tới tất cả subscription
       const results = await Promise.allSettled(
         subscriptions.map(subscription =>
