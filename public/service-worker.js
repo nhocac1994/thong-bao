@@ -82,9 +82,12 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   // Lấy link từ data truyền vào notification
-  const urlToOpen = event.notification.data && event.notification.data.url
+  let urlToOpen = event.notification.data && event.notification.data.url
     ? event.notification.data.url
-    : '/'; // Mặc định về trang chủ nếu không có url
+    : '/';
+
+  // Loại bỏ dấu \\ hoặc \ ở trước row id nếu có
+  urlToOpen = urlToOpen.replace(/row=\\\\?/g, 'row=');
 
   event.waitUntil(
     clients.openWindow(urlToOpen)
