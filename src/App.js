@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import ContactForm from './components/ContactForm';
 
 function App() {
   const [isSubscribed, setIsSubscribed] = useState(false);
