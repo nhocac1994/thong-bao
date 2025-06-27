@@ -43,33 +43,7 @@ self.addEventListener('push', (event) => {
     try {
       data = event.data.json();
     } catch (e) {
-      // Nếu không parse được JSON, lấy text làm body
-      data = {};
-      event.data.text().then(text => {
-        self.registration.showNotification('Thông báo mới', {
-          body: text,
-          icon: '/icon.svg',
-          badge: '/icon.svg',
-          vibrate: [100, 50, 100],
-          data: {
-            dateOfArrival: Date.now(),
-            primaryKey: 1
-          },
-          actions: [
-            {
-              action: 'explore',
-              title: 'Xem chi tiết',
-              icon: '/icon.svg'
-            },
-            {
-              action: 'close',
-              title: 'Đóng',
-              icon: '/icon.svg'
-            }
-          ]
-        });
-      });
-      return;
+      data = { title: 'Thông báo mới', body: event.data.text() };
     }
   }
 
