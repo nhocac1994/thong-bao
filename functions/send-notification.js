@@ -14,8 +14,8 @@ webpush.setVapidDetails(
 );
 
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
+  'https://vnzedwjfihhvmvlsascl.supabase.co', // Thay bằng SUPABASE_URL thực tế của bạn
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuemVkd2pmaWhodm12bHNhc2NsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA5OTY5MzEsImV4cCI6MjA2NjU3MjkzMX0.hNbRYoM4q_wQvQ5Ipx7wAxRQKjXo2Bfve1f7sAl-rF4' // Thay bằng SUPABASE_SERVICE_KEY thực tế của bạn
 );
 
 exports.handler = async (event, context) => {
@@ -25,6 +25,20 @@ exports.handler = async (event, context) => {
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE'
   };
+
+  // TEST: Lấy danh sách subscription và log ra ngay khi function được gọi
+  try {
+    const { data: allSubscriptions, error: subError } = await supabase
+      .from('subscriptions')
+      .select('*');
+    if (subError) {
+      console.error('Lỗi khi lấy danh sách subscription (test):', subError);
+    } else {
+      console.log('Danh sách subscription (test):', allSubscriptions);
+    }
+  } catch (e) {
+    console.error('Lỗi test lấy subscription:', e);
+  }
 
   // Xử lý preflight request
   if (event.httpMethod === 'OPTIONS') {
@@ -36,25 +50,45 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { path } = event;
+    // Lấy query type nếu có
+    const url = new URL(event.rawUrl || `http://localhost${event.path}`);
+    const type = url.searchParams.get('type');
 
-    // Lưu subscription vào Supabase
-    if (path === '/api/save-subscription' && event.httpMethod === 'POST') {
+    // Endpoint để lấy VAPID public key
+    if (type === 'vapid-public-key') {
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ publicKey: vapidKeys.publicKey })
+      };
+    }
+
+    // Lưu subscription vào Supabase (POST, có subscription trong body)
+    if (event.httpMethod === 'POST' && event.body && event.body.includes('endpoint')) {
       const subscription = JSON.parse(event.body);
-
+      console.log('Nhận subscription:', subscription);
       // Kiểm tra trùng endpoint
       const { data: existing } = await supabase
         .from('subscriptions')
         .select('id')
         .eq('endpoint', subscription.endpoint)
         .maybeSingle();
-
+      console.log('Kết quả kiểm tra subscription đã tồn tại:', existing);
       if (!existing) {
-        await supabase
+        const { error } = await supabase
           .from('subscriptions')
           .insert([{ endpoint: subscription.endpoint, keys: subscription.keys }]);
+        if (error) {
+          console.error('Lỗi khi insert vào Supabase:', error);
+        } else {
+          console.log('Đã lưu subscription mới vào Supabase');
+        }
+      } else {
+        console.log('Subscription đã tồn tại, không lưu lại');
       }
-
       return {
         statusCode: 200,
         headers: { ...headers, 'Content-Type': 'application/json' },
@@ -62,15 +96,14 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Gửi notification tới tất cả subscription trong Supabase
-    if (path === '/api/send-notification' && event.httpMethod === 'POST') {
+    // Gửi notification tới tất cả subscription trong Supabase (POST, có title/body/icon trong body)
+    if (event.httpMethod === 'POST' && event.body && event.body.includes('title')) {
       const { title, body, icon } = JSON.parse(event.body);
-
       // Lấy tất cả subscription
       const { data: subscriptions } = await supabase
         .from('subscriptions')
         .select('*');
-
+      console.log('Danh sách subscription lấy từ Supabase:', subscriptions);
       if (!subscriptions || !subscriptions.length) {
         return {
           statusCode: 400,
@@ -78,7 +111,6 @@ exports.handler = async (event, context) => {
           body: JSON.stringify({ error: 'Không có subscription nào để gửi thông báo' })
         };
       }
-
       const payload = JSON.stringify({
         title: title || 'Thông báo mới',
         body: body || 'Bạn có thông báo mới!',
@@ -87,7 +119,6 @@ exports.handler = async (event, context) => {
         vibrate: [100, 50, 100],
         data: { dateOfArrival: Date.now(), primaryKey: 1 }
       });
-
       // Gửi notification tới tất cả subscription
       const results = await Promise.allSettled(
         subscriptions.map(subscription =>
@@ -100,7 +131,7 @@ exports.handler = async (event, context) => {
           )
         )
       );
-
+      console.log('Kết quả gửi notification:', results);
       return {
         statusCode: 200,
         headers: { ...headers, 'Content-Type': 'application/json' },
@@ -110,22 +141,9 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Endpoint để lấy VAPID public key
-    const url = new URL(event.rawUrl || `http://localhost${event.path}`);
-    const type = url.searchParams.get('type');
-    if (type === 'vapid-public-key') {
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({ publicKey: vapidKeys.publicKey })
-      };
-    }
-
-    // Endpoint để lấy danh sách subscriptions
-    if (path === '/api/subscriptions' && event.httpMethod === 'GET') {
+    // Endpoint để lấy danh sách subscriptions (GET)
+    if (event.httpMethod === 'GET' && url.pathname.endsWith('/subscriptions')) {
+      const { data: subscriptions } = await supabase.from('subscriptions').select('*');
       return {
         statusCode: 200,
         headers: {

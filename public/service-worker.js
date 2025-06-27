@@ -10,8 +10,8 @@ self.addEventListener('install', (event) => {
         console.log('Cache đã được mở');
         return cache.addAll([
           '/',
-          '/static/js/bundle.js',
-          '/static/css/main.css'
+          // '/static/js/bundle.js', // Nếu chắc chắn có file này thì giữ lại, không thì xóa/comment
+          // '/static/css/main.css'  // XÓA hoặc comment nếu không tồn tại
         ]);
       })
   );

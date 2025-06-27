@@ -126,7 +126,7 @@ function App() {
 
   const sendSubscriptionToServer = async (sub) => {
     try {
-      const response = await fetch('/api/save-subscription', {
+      const response = await fetch('/api/send-notification', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
