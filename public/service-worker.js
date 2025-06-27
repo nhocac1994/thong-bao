@@ -37,13 +37,22 @@ self.addEventListener('activate', (event) => {
 // Xử lý push notifications
 self.addEventListener('push', (event) => {
   console.log('Nhận được push notification:', event);
-  
+
+  let data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = { title: 'Thông báo mới', body: event.data.text() };
+    }
+  }
+
   const options = {
-    body: event.data ? event.data.text() : 'Bạn có thông báo mới!',
-    icon: '/icon.svg',
-    badge: '/icon.svg',
-    vibrate: [100, 50, 100],
-    data: {
+    body: data.body || 'Bạn có thông báo mới!',
+    icon: data.icon || '/icon.svg',
+    badge: data.badge || '/icon.svg',
+    vibrate: data.vibrate || [100, 50, 100],
+    data: data.data || {
       dateOfArrival: Date.now(),
       primaryKey: 1
     },
@@ -62,7 +71,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification('Thông báo mới', options)
+    self.registration.showNotification(data.title || 'Thông báo mới', options)
   );
 });
 
