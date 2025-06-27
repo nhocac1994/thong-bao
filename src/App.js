@@ -72,6 +72,7 @@ function App() {
   const subscribeToNotifications = async () => {
     try {
       if (!registration) {
+        console.log('registration hiện tại:', registration);
         setTestStatus('❌ Service Worker chưa sẵn sàng');
         setTimeout(() => setTestStatus(''), 3000);
         return;
@@ -249,7 +250,7 @@ function App() {
           )}
 
           {notificationPermission === 'granted' && !isSubscribed && vapidPublicKey && (
-            <button onClick={subscribeToNotifications} className="btn btn-success">
+            <button onClick={subscribeToNotifications} className="btn btn-success" disabled={!registration}>
               📝 Đăng ký nhận thông báo
             </button>
           )}
