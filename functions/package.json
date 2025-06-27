@@ -1,0 +1,9 @@
+{
+  "name": "push-notification-functions",
+  "version": "1.0.0",
+  "description": "Netlify functions cho push notifications",
+  "main": "send-notification.js",
+  "dependencies": {
+    "web-push": "^3.6.6"
+  }
+} 
