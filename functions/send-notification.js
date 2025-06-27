@@ -159,6 +159,37 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // Nhận request từ Google Apps Script để gửi thông báo khi có dòng mới trong Google Sheet
+    if (event.httpMethod === 'POST' && event.body && event.body.includes('fromSheet')) {
+      const { title, body } = JSON.parse(event.body);
+      // Lấy tất cả subscription
+      const { data: subscriptions } = await supabase.from('subscriptions').select('*');
+      const payload = JSON.stringify({
+        title: title || 'Có dòng mới trong Google Sheet!',
+        body: body || 'Một dòng mới vừa được thêm vào Google Sheet.',
+        icon: '/icon.svg',
+        badge: '/icon.svg',
+        vibrate: [100, 50, 100],
+        data: { dateOfArrival: Date.now(), primaryKey: 1 }
+      });
+      await Promise.allSettled(
+        subscriptions.map(subscription =>
+          webpush.sendNotification(
+            {
+              endpoint: subscription.endpoint,
+              keys: subscription.keys
+            },
+            payload
+          )
+        )
+      );
+      return {
+        statusCode: 200,
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: 'Đã gửi thông báo từ Google Sheet' })
+      };
+    }
+
     return {
       statusCode: 404,
       headers: {
