@@ -49,8 +49,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body || 'Bạn có thông báo mới!',
-    icon: data.icon || '/icon.svg',
-    badge: data.badge || '/icon.svg',
+    icon: data.icon || '/favicon/favicon.svg',
+    badge: data.badge || '/favicon/favicon.svg',
     vibrate: data.vibrate || [100, 50, 100],
     data: data.data || {
       dateOfArrival: Date.now(),
@@ -60,12 +60,12 @@ self.addEventListener('push', (event) => {
       {
         action: 'explore',
         title: 'Xem chi tiết',
-        icon: '/icon.svg'
+        icon: '/favicon/favicon.svg'
       },
       {
         action: 'close',
         title: 'Đóng',
-        icon: '/icon.svg'
+        icon: '/favicon/favicon.svg'
       }
     ]
   };

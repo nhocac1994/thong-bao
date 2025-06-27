@@ -114,8 +114,8 @@ exports.handler = async (event, context) => {
       const payload = JSON.stringify({
         title: title || 'Thông báo mới',
         body: body || 'Bạn có thông báo mới!',
-        icon: icon || '/icon.svg',
-        badge: '/icon.svg',
+        icon: icon || '/favicon/favicon.svg',
+        badge: '/favicon/favicon.svg',
         vibrate: [100, 50, 100],
         data: { dateOfArrival: Date.now(), primaryKey: 1 }
       });
