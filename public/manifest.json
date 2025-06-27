@@ -1,6 +1,6 @@
 {
-  "short_name": "Push App",
-  "name": "Push Notification App",
+  "short_name": "Đơn hàng",
+  "name": "Đơn hàng",
   "icons": [
     {
       "src": "icon.svg",
