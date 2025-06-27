@@ -1,7 +1,7 @@
 {
-  "name": "test-thong-bao",
+  "name": "mges",
   "version": "1.0.0",
-  "description": "React app với push notifications",
+  "description": "MGES",
   "main": "index.js",
   "scripts": {
     "start": "react-scripts start",

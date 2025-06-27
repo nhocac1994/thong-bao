@@ -1,19 +1,19 @@
 {
-  "short_name": "Đơn hàng",
-  "name": "Đơn hàng",
+  "short_name": "MGES",
+  "name": "MGES",
   "icons": [
     {
-      "src": "icon.svg",
+      "src": "favicon/favicon.svg",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/svg+xml"
     },
     {
-      "src": "icon.svg",
+      "src": "favicon/favicon.svg",
       "type": "image/svg+xml",
       "sizes": "192x192"
     },
     {
-      "src": "icon.svg",
+      "src": "favicon/favicon.svg",
       "type": "image/svg+xml",
       "sizes": "512x512"
     }
